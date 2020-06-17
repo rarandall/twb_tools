@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Upload .twb
+{% endblock %}
+
+{% block main %}
+<br>
+    Upload .twb file
+
+<html>
+   <body>
+      <form action = "/upload" method = "POST"
+         enctype = "multipart/form-data">
+         <input type = "file" name = "file" />
+         <input type = "submit"/>
+      </form>
+   </body>
+</html>
+{% endblock %}

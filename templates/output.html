@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Output
+{% endblock %}
+
+{% block main %}
+<br><div id="divData">
+ <table style="width:80%">
+      <tr>
+        <th>Name</th>
+        <th>Remote Name</th>
+        <th>Formula</th>
+        <th>Comment</th>
+      </tr>
+    {% for row in filename %}
+      <tr>
+        <td style="width:20%">{{ row[0] }}</td>
+        <td style="width:20%">{{ row[1] }}</td>
+        <td style="width:20%">{{ row[2] }}</td>
+        <td style="width:20%">{{ row[3] }}</td>
+      </tr>
+    {% endfor %}
+    </table></div>
+{% endblock %}
+<script>
+$(document).ready(() => {
+  $("#buttonExport").click(e => {
+    // Getting values of current time for generating the file name
+    const dateTime = new Date();
+    const day      = dateTime.getDate();
+    const month    = dateTime.getMonth() + 1;
+    const year     = dateTime.getFullYear();
+    const hour     = dateTime.getHours();
+    const minute   = dateTime.getMinutes();
+    const postfix  = `${day}.${month}.${year}_${hour}.${minute}`;
+
+    // Creating a temporary HTML link element (they support setting file names)
+    const downloadElement = document.createElement('a');
+
+    // Getting data from our `div` that contains the HTML table
+    const dataType  = 'data:application/vnd.ms-excel';
+    const tableDiv  = document.getElementById('divData');
+    const tableHTML = tableDiv.outerHTML.replace(/ /g, '%20');
+
+    // Setting the download source
+    downloadElement.href = `${dataType},${tableHTML}`;
+
+    // Setting the file name
+    downloadElement.download = `exported_table_${postfix}.xls`;
+
+    // Trigger the download
+    downloadElement.click();
+
+    // Just in case, prevent default behaviour
+    e.preventDefault();
+  });
+});
+    </script>
