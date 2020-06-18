@@ -5,8 +5,24 @@
 {% endblock %}
 
 {% block main %}
+<div id="myDiagramDiv" style="background-color: whitesmoke; border: solid 1px black; width: 100%; height: 600px"></div>
+  <p>
+    This concept map depicts the relationships between different fields.
+      <br>
+      If <strong>[Field_A]</strong> ------> <strong>[Field_B]</strong>, then [Field_A] is used in the formula of [Field_B].
+      <br>
+    <div><strong>Controls</strong>
+    <ul>
+        Zoom: Mouse-wheel
+        <br>
+        Pan: Click-drag
+    </ul></div>
+  </p>
+<br>
+<br>
 <form action="/csv" method="post"><input type="hidden" name="fileid" value={{ fileid }}><button class="btn btn-primary" type="submit">Download CSV</button></form>
 <br>
+
 <br>
  <table>
       <tr>
@@ -24,4 +40,65 @@
       </tr>
     {% endfor %}
     </table>
+{% endblock %}
+
+{% block footer %}
+<script>
+  function init() {
+      if (window.goSamples) goSamples();  // init for these samples -- you don't need to call this
+      var $ = go.GraphObject.make;  // for conciseness in defining templates
+
+      myDiagram =
+        $(go.Diagram, "myDiagramDiv",  // must name or refer to the DIV HTML element
+          {
+            initialAutoScale: go.Diagram.Uniform,  // an initial automatic zoom-to-fit
+            contentAlignment: go.Spot.Center,  // align document to the center of the viewport
+            layout:
+              $(go.ForceDirectedLayout,  // automatically spread nodes apart
+                { maxIterations: 200, defaultSpringLength: 30, defaultElectricalCharge: 100 })
+          });
+
+      // define each Node's appearance
+      myDiagram.nodeTemplate =
+        $(go.Node, "Auto",  // the whole node panel
+          { locationSpot: go.Spot.Center },
+          // define the node's outer shape, which will surround the TextBlock
+          $(go.Shape, "Border",
+            { fill: $(go.Brush, "Linear", { 0: "rgb(00, 221, 40)", 1: "rgb(00, 162, 80)" }), stroke: "black" }),
+          $(go.TextBlock,
+            { font: "bold 12pt helvetica, bold arial, sans-serif", margin: 4 },
+            new go.Binding("text", "text"))
+        );
+
+      // replace the default Link template in the linkTemplateMap
+      myDiagram.linkTemplate =
+        $(go.Link,  // the whole link panel
+          $(go.Shape,  // the link shape
+            { stroke: "black" }),
+          $(go.Shape,  // the arrowhead
+            { toArrow: "standard", stroke: null }),
+          $(go.Panel, "Auto",
+            $(go.Shape,  // the label background, which becomes transparent around the edges
+              {
+                fill: $(go.Brush, "Radial", { 0: "rgb(240, 240, 240)", 0.3: "rgb(240, 240, 240)", 1: "rgba(240, 240, 240, 0)" }),
+                stroke: null
+              }),
+            $(go.TextBlock,  // the label text
+              {
+                textAlign: "center",
+                font: "10pt helvetica, arial, sans-serif",
+                stroke: "#555555",
+                margin: 4
+              },
+              new go.Binding("text", "text"))
+          )
+        );
+
+      // create the model for the concept map
+      var nodeDataArray = {{ fields|tojson|safe }};
+      var linkDataArray = {{ paths|tojson|safe }};
+      myDiagram.model = new go.GraphLinksModel(nodeDataArray, linkDataArray);
+    }
+</script>
+<body onload="init()">
 {% endblock %}

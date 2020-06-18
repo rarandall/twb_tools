@@ -4,6 +4,7 @@ import uuid
 from werkzeug.utils import secure_filename
 import xml.etree.ElementTree as ET
 import pandas as pd
+import re
 
 app = Flask(__name__)
 
@@ -29,7 +30,10 @@ def index():
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename_h))
             # message = filename + " uploaded"
             df = get_calc(UPLOAD_FOLDER+filename_h)
-            return render_template('output.html', filename=df, fileid=filename_h)
+            p_df = pd.DataFrame(df, columns=['Name', 'Remote Name', 'Formula', 'Comment'])
+            fields = get_fields(p_df)
+            paths = get_paths(p_df)
+            return render_template('output.html', filename=df, fileid=filename_h, fields=fields, paths=paths)
         else:
             error = "Not a valid twb file"
             return render_template('upload.html', error=error)
@@ -51,6 +55,7 @@ def csv():
     else:
         error = "First, upload a twb file"
         return render_template('upload.html', error=error)
+
 
 @app.route("/disclaimer", methods =['GET'])
 def disclaimer():
@@ -117,6 +122,50 @@ def get_calc(file):
 
     #data.to_csv(filename + '.csv')
     return data_dedup
+
+def get_fields(df):
+    # input a dataframe
+    # output a list of key values [{ key:1, text: field_1 }, { key:2, text: field_2 }]
+    fields = []
+    # get all values from Name column
+    for i in range(len(df)):
+        fields.append(df.iloc[i]['Name'])
+    # get fields referenced in formula (ie. any string with [ ] or [Parameter].[ ] )
+    for i in range(len(df)):
+        s = df.iloc[i]['Formula']
+        s = s.replace('[Parameters].[','[Parameter: ')
+        a = re.findall('\[.*?\]',s)
+        fields = fields + a
+    fields.sort()
+    fields = list(dict.fromkeys(fields))
+    field_kvs = []
+    for i, n in enumerate(fields):
+        kv = {}
+        kv['key'] = i
+        kv['text'] = n
+        field_kvs.append(kv)
+    return field_kvs
+
+def get_paths(df):
+    # for each row in df, get the fields in formula as a list
+    # create a list of key value pairs
+    # for each field in formula, from=field in formula_key, to=name_key text='' { from: 1, to: 2, text: "" }
+    key_dict = get_fields(df)
+    paths_kvs = []
+    for i in range(len(df)):
+        s = df.iloc[i]['Formula']
+        s = s.replace('[Parameters].[','[Parameter: ')
+        formula_fields = re.findall('\[.*?\]', s)
+        for field in formula_fields:
+            kv = {}
+            for dict in key_dict:
+                if dict.get('text') == field.replace('[Parameters].[','[Parameter: '):
+                    kv['from'] = dict.get('key')
+                if dict.get('text') == df.iloc[i]['Name']:
+                    kv['to'] = dict.get('key')
+                    kv['text'] = 'o'
+            paths_kvs.append(kv)
+    return paths_kvs
 
 if __name__ == "__main__":
     app.secret_key = 'AoAv38dAf3A0ZTvE392jdjsvRBKN72v765f?RT'

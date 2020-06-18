@@ -19,6 +19,7 @@
         <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script>
         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/gojs/release/go.js"></script>
 
         <title>CalcExtractor {% block title %}{% endblock %}</title>
 
@@ -27,7 +28,7 @@
     <body>
 
         <nav class="navbar navbar-expand-md navbar-light bg-light border">
-            <a class="navbar-brand" href="/"><span class="green">Calc</span></span><span class="blue">Extractor</span></a>
+            <a class="navbar-brand" href="/upload"><span class="green">Calc</span></span><span class="blue">Extractor</span></a>
             <button aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation" class="navbar-toggler" data-target="#navbar" data-toggle="collapse" type="button">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -54,7 +55,8 @@
                 <p class=error>{{ message }}
           {% endif %}
         </main>
-
+        {% block footer %}
+        {% endblock %}
         <footer class="small text-center text-muted">
              This app built by <a href="https://thedotviz.com">Ray Randall</a> using <a href="https://flask.palletsprojects.com/">Flask.
         <a href="/disclaimer">Terms of Use</a>.
