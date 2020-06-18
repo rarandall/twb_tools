@@ -1,8 +1,9 @@
 import os
-from flask import Flask, redirect, render_template, request, session
+from flask import Flask, redirect, render_template, request, session, Response
 import uuid
 from werkzeug.utils import secure_filename
 import xml.etree.ElementTree as ET
+import pandas as pd
 
 app = Flask(__name__)
 
@@ -28,11 +29,33 @@ def index():
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename_h))
             # message = filename + " uploaded"
             df = get_calc(UPLOAD_FOLDER+filename_h)
-            return render_template('output.html', filename=df)
+            return render_template('output.html', filename=df, fileid=filename_h)
         else:
             error = "Not a valid twb file"
             return render_template('upload.html', error=error)
     return render_template('upload.html')
+
+@app.route("/csv", methods=['POST'])
+def csv():
+    if request.method == 'POST':
+        f = request.form.get("fileid")
+        lol = get_calc(UPLOAD_FOLDER+f)
+        df = pd.DataFrame(lol, columns=['Name', 'Remote Name', 'Formula', 'Comment'])
+        csv_data = df.to_csv()
+        return Response(
+            csv_data,
+            mimetype="text/csv",
+            headers={"Content-disposition":
+                         "attachment; filename=export.csv"})
+
+    else:
+        error = "First, upload a twb file"
+        return render_template('upload.html', error=error)
+
+@app.route("/disclaimer", methods =['GET'])
+def disclaimer():
+    if request.method == 'GET':
+        return render_template('disclaimer.html')
 
 def get_calc(file):
     # parse the twb file

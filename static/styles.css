@@ -48,7 +48,11 @@ main img
 table, th, td
 {
   border: 1px solid black;
-  padding: 15px;
+  padding: 5px;
+  width: 30%;
+  margin: 0px auto;
+  table-layout: auto;
+  font-size: 12px
 }
 tr:nth-child(even) {
   background-color: #dddddd;
