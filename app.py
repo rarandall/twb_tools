@@ -30,7 +30,7 @@ def index():
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename_h))
             # message = filename + " uploaded"
             df = get_calc(UPLOAD_FOLDER+filename_h)
-            p_df = pd.DataFrame(df, columns=['Name', 'Remote Name', 'Formula', 'Comment'])
+            p_df = pd.DataFrame(df, columns=['Name', 'Remote_Name', 'Formula', 'Comment'])
             fields = get_fields(p_df)
             paths = get_paths(p_df)
             return render_template('output.html', filename=df, fileid=filename_h, fields=fields, paths=paths)
@@ -44,7 +44,7 @@ def csv():
     if request.method == 'POST':
         f = request.form.get("fileid")
         lol = get_calc(UPLOAD_FOLDER+f)
-        df = pd.DataFrame(lol, columns=['Name', 'Remote Name', 'Formula', 'Comment'])
+        df = pd.DataFrame(lol, columns=['Name', 'Remote_Name', 'Formula', 'Comment'])
         csv_data = df.to_csv()
         return Response(
             csv_data,
@@ -127,6 +127,8 @@ def get_fields(df):
     # input a dataframe
     # output a list of key values [{ key:1, text: field_1 }, { key:2, text: field_2 }]
     fields = []
+    # first, remove all parameters from df
+    df = df[~df.Remote_Name.str.startswith('[Parameter ')]
     # get all values from Name column
     for i in range(len(df)):
         fields.append(df.iloc[i]['Name'])
@@ -154,17 +156,18 @@ def get_paths(df):
     paths_kvs = []
     for i in range(len(df)):
         s = df.iloc[i]['Formula']
-        s = s.replace('[Parameters].[','[Parameter: ')
+        s = s.replace('[Parameters].[', '[Parameter: ')
         formula_fields = re.findall('\[.*?\]', s)
         for field in formula_fields:
             kv = {}
             for dict in key_dict:
-                if dict.get('text') == field.replace('[Parameters].[','[Parameter: '):
+                if dict.get('text') == field.replace('[Parameters].[', '[Parameter: '):
                     kv['from'] = dict.get('key')
                 if dict.get('text') == df.iloc[i]['Name']:
                     kv['to'] = dict.get('key')
                     kv['text'] = 'o'
-            paths_kvs.append(kv)
+            if len(kv) == 3 and kv not in paths_kvs:
+                paths_kvs.append(kv)
     return paths_kvs
 
 if __name__ == "__main__":
