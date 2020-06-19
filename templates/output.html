@@ -20,7 +20,7 @@
   </p>
 <br>
 <br>
-<form action="/csv" method="post"><input type="hidden" name="fileid" value={{ fileid }}><button class="btn btn-primary" type="submit">Download CSV</button></form>
+<form action="/csv" method="post"><input type="hidden" name="fileid" value={{ fileid }}/><button class="btn btn-primary" type="submit">Download CSV</button></form>
 <br>
 
 <br>
@@ -40,65 +40,85 @@
       </tr>
     {% endfor %}
     </table>
+
+
 {% endblock %}
 
 {% block footer %}
 <script>
-  function init() {
+ function init() {
       if (window.goSamples) goSamples();  // init for these samples -- you don't need to call this
       var $ = go.GraphObject.make;  // for conciseness in defining templates
 
-      myDiagram =
+      diagram =
         $(go.Diagram, "myDiagramDiv",  // must name or refer to the DIV HTML element
           {
             initialAutoScale: go.Diagram.Uniform,  // an initial automatic zoom-to-fit
             contentAlignment: go.Spot.Center,  // align document to the center of the viewport
             layout:
               $(go.ForceDirectedLayout,  // automatically spread nodes apart
-                { maxIterations: 200, defaultSpringLength: 30, defaultElectricalCharge: 100 })
+                { maxIterations: 2000, defaultSpringLength: 30, defaultElectricalCharge: 350 })
           });
 
-      // define each Node's appearance
-      myDiagram.nodeTemplate =
-        $(go.Node, "Auto",  // the whole node panel
-          { locationSpot: go.Spot.Center },
-          // define the node's outer shape, which will surround the TextBlock
-          $(go.Shape, "Border",
-            { fill: $(go.Brush, "Linear", { 0: "rgb(00, 221, 40)", 1: "rgb(00, 162, 80)" }), stroke: "black" }),
-          $(go.TextBlock,
-            { font: "bold 12pt helvetica, bold arial, sans-serif", margin: 4 },
-            new go.Binding("text", "text"))
-        );
+  diagram.nodeTemplate =
+    $(go.Node, "Auto",
+      { // when the user clicks on a Node, highlight all Links coming out of the node
+        // and all of the Nodes at the other ends of those Links.
+        click: function(e, node) {
+            // highlight all Links and Nodes coming out of a given Node
+            var diagram = node.diagram;
+            diagram.startTransaction("highlight");
+            // remove any previous highlighting
+            diagram.clearHighlighteds();
+            // for each Link coming out of the Node, set Link.isHighlighted
+            node.findLinksInto().each(function(l) { l.isHighlighted = true; });
+            // for each Node destination for the Node, set Node.isHighlighted
+            node.findNodesOutOf().each(function(n) { n.isHighlighted = true; });
+            diagram.commitTransaction("highlight");
+          }
+      },
+      $(go.Shape, "Border",
+        { strokeWidth: 2, stroke: null, fill: $(go.Brush, "Linear", { 0: "rgb(00, 221, 40)", 1: "rgb(00, 162, 80)" })},
+        // the Shape.stroke color depends on whether Node.isHighlighted is true
+        new go.Binding("stroke", "isHighlighted", function(h) { return h ? "red" : "rgb(00, 221, 40)"; })
+            .ofObject(),
+         new go.Binding("strokeWidth", "isHighlighted", function(h) { return h ? 5 : 1; })
+            .ofObject()),
+      $(go.TextBlock,
+        { margin: 10, font: "bold 18px Verdana" },
+        new go.Binding("text", "text"))
+    );
 
-      // replace the default Link template in the linkTemplateMap
-      myDiagram.linkTemplate =
-        $(go.Link,  // the whole link panel
-          $(go.Shape,  // the link shape
-            { stroke: "black" }),
-          $(go.Shape,  // the arrowhead
-            { toArrow: "standard", stroke: null }),
-          $(go.Panel, "Auto",
-            $(go.Shape,  // the label background, which becomes transparent around the edges
-              {
-                fill: $(go.Brush, "Radial", { 0: "rgb(240, 240, 240)", 0.3: "rgb(240, 240, 240)", 1: "rgba(240, 240, 240, 0)" }),
-                stroke: null
-              }),
-            $(go.TextBlock,  // the label text
-              {
-                textAlign: "center",
-                font: "10pt helvetica, arial, sans-serif",
-                stroke: "#555555",
-                margin: 4
-              },
-              new go.Binding("text", "text"))
-          )
-        );
+  // define the Link template
+  diagram.linkTemplate =
+    $(go.Link,
+      { toShortLength: 4 },
+      $(go.Shape,
+        // the Shape.stroke color depends on whether Link.isHighlighted is true
+        new go.Binding("stroke", "isHighlighted", function(h) { return h ? "red" : "black"; })
+            .ofObject(),
+        // the Shape.strokeWidth depends on whether Link.isHighlighted is true
+        new go.Binding("strokeWidth", "isHighlighted", function(h) { return h ? 5 : 1; })
+            .ofObject()),
+      $(go.Shape,
+        { toArrow: "Standard", strokeWidth: 0 },
+        // the Shape.fill color depends on whether Link.isHighlighted is true
+        new go.Binding("fill", "isHighlighted", function(h) { return h ? "red" : "black"; })
+            .ofObject())
+    );
+
+  // when the user clicks on the background of the Diagram, remove all highlighting
+  diagram.click = function(e) {
+    e.diagram.commit(function(d) { d.clearHighlighteds(); }, "no highlighteds");
+  };
+
 
       // create the model for the concept map
       var nodeDataArray = {{ fields|tojson|safe }};
       var linkDataArray = {{ paths|tojson|safe }};
-      myDiagram.model = new go.GraphLinksModel(nodeDataArray, linkDataArray);
-    }
+      diagram.model = new go.GraphLinksModel(nodeDataArray, linkDataArray);
+   };
 </script>
-<body onload="init()">
+<body onload="init();">
 {% endblock %}
+
