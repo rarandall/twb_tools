@@ -1,8 +1,10 @@
 import os
-from flask import Flask, redirect, render_template, request, session, Response
+from flask import Flask, render_template, request, session, Response, send_from_directory, current_app
 import uuid
 from werkzeug.utils import secure_filename
+from xml.etree.ElementTree import tostring
 import xml.etree.ElementTree as ET
+from googletrans import Translator
 import pandas as pd
 import re
 
@@ -10,9 +12,11 @@ app = Flask(__name__)
 
 ALLOWED_EXTENSIONS = {'twb'}
 UPLOAD_FOLDER = '/Users/p-73/PycharmProjects/flask/myproject/upload/'
+OUTPUT_FOLDER = '/Users/p-73/PycharmProjects/flask/myproject/output/'
 
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_PATH'] = 50000
 
 def allowed_file(filename):
@@ -25,7 +29,6 @@ def index():
     if request.method == 'POST':
         file = request.files['file']
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
             filename_h = str(session['uid'])
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename_h))
             # message = filename + " uploaded"
@@ -55,6 +58,30 @@ def csv():
     else:
         error = "First, upload a twb file"
         return render_template('upload.html', error=error)
+
+@app.route("/translate", methods=['GET', 'POST'])
+def translate():
+    session['uid'] = uuid.uuid4()
+    if request.method == 'POST':
+        file = request.files['file1']
+        dest = request.form['dest']
+        src = request.form['src']
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filename_h = str(session['uid'])
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename_h))
+            translate_twb(UPLOAD_FOLDER + filename_h,src,dest,filename_h)
+            output = os.path.join(current_app.root_path, app.config['OUTPUT_FOLDER'])
+            filename_path = filename_h + '.twb'
+            attachment_name = filename.replace('.twb','')+'_'+dest+'.twb'
+            return send_from_directory(directory=output, filename=filename_path, as_attachment=True,
+                                       attachment_filename=attachment_name)
+        else:
+            error = 'Not a valid twb file'
+            return render_template('translate.html', error=error)
+    else:
+        return render_template('translate.html')
+
 
 
 @app.route("/disclaimer", methods =['GET'])
@@ -169,6 +196,112 @@ def get_paths(df):
             if len(kv) == 3 and kv not in paths_kvs:
                 paths_kvs.append(kv)
     return paths_kvs
+
+# translate the text in a twb
+def translate_twb(file,src,dest,hashid):
+    translator = Translator()
+    # parse the twb file
+    tree = ET.parse(file)
+    root = tree.getroot()
+
+    # translate sheet names
+    for child in root.findall('./worksheets/worksheet'):
+        # replace some symbols e.g. _ with spaces
+        clean_text = child.get('name').replace('_', ' ')
+        trans_obj = translator.translate(clean_text, src=src, dest=dest)
+        new_text = trans_obj.text
+        child.attrib['name'] = new_text
+
+    # translate dashboard and story names
+    for child in root.findall('./dashboards/dashboard'):
+        clean_text = child.get('name').replace('_', ' ')
+        trans_obj = translator.translate(clean_text, src=src, dest=dest)
+        new_text = trans_obj.text
+        child.attrib['name'] = new_text
+
+    # translate story point titles
+    for child in root.iter('story-point'):
+        clean_text = child.get('caption').replace('_', ' ')
+        trans_obj = translator.translate(clean_text, src=src, dest=dest)
+        new_text = trans_obj.text
+        child.attrib['caption'] = new_text
+
+    # translate all text objects, including dashboard and story point text boxes,
+    # sheet captions, and custom filter titles on dashboards
+    for child in root.iter('run'):
+        # replace some symbols e.g. _ with spaces
+        clean_text = child.text.replace('_', ' ')
+        trans_obj = translator.translate(clean_text, src=src, dest=dest)
+        child.text = trans_obj.text
+
+    # translate renamed fields, calculated fields, and parameters
+    for child in root.findall('./datasources/*/column'):
+        if child.get('caption') is not None:
+            clean_text = child.get('caption').replace('_', ' ')
+            trans_obj = translator.translate(clean_text, src=src, dest=dest)
+            new_text = trans_obj.text
+            child.attrib['caption'] = new_text
+
+    # translate groups and bins
+    for child in root.findall('./datasources/datasource/column'):
+        for tag in child.findall('calculation[@class]'):
+            if tag.get('class') == 'categorical-bin' or tag.get('class') == 'bin':
+                if child.get('caption') is None:
+                    clean_text = child.get('name').replace('_', ' ')
+                    trans_obj = translator.translate(clean_text, src=src, dest=dest)
+                    new_text = trans_obj.text
+                    child.attrib['name'] = new_text
+                else:
+                    clean_text = child.get('caption').replace('_', ' ')
+                    trans_obj = translator.translate(clean_text, src=src, dest=dest)
+                    new_text = trans_obj.text
+                    child.attrib['caption'] = new_text
+
+    # translate sets
+    # for child in root.findall('./datasources/datasource/group'):
+    #     if child.get('caption') is not None:
+    #         clean_text = child.get('caption').replace('_', ' ')
+    #         trans_obj = translator.translate(clean_text, src=src, dest=dest)
+    #         new_text = trans_obj.text
+    #         child.attrib['caption'] = new_text
+    #         child.attrib['name'] = '['+new_text+']'
+
+    # translate folders
+    for child in root.findall('./datasources/datasource/*folder'):
+        clean_text = child.get('name').replace('_', ' ')
+        trans_obj = translator.translate(clean_text, src=src, dest=dest)
+        new_text = trans_obj.text
+        child.attrib['name'] = new_text
+
+    for child in root.findall('./datasources/datasource/*/folder'):
+        clean_text = child.get('name').replace('_', ' ')
+        trans_obj = translator.translate(clean_text, src=src, dest=dest)
+        new_text = trans_obj.text
+        child.attrib['name'] = new_text
+
+    # update parameter dependencies
+    for child in root.findall('./datasources/datasource/datasource-dependencies/column'):
+        clean_text = child.get('caption').replace('_', ' ')
+        trans_obj = translator.translate(clean_text, src=src, dest=dest)
+        new_text = trans_obj.text
+        child.attrib['caption'] = new_text
+
+    # update windows
+    for child in root.findall('./windows/window'):
+        clean_text = child.get('name').replace('_', ' ')
+        trans_obj = translator.translate(clean_text, src=src, dest=dest)
+        new_text = trans_obj.text
+        child.attrib['name'] = new_text
+
+    # update thumbnails
+    for child in root.findall('./thumbnails/thumbnail'):
+        clean_text = child.get('name').replace('_', ' ')
+        trans_obj = translator.translate(clean_text, src=src, dest=dest)
+        new_text = trans_obj.text
+        child.attrib['name'] = new_text
+
+    output = os.path.join(app.config['OUTPUT_FOLDER'], hashid)
+    tree.write(output+'.twb')
 
 if __name__ == "__main__":
     app.secret_key = 'AoAv38dAf3A0ZTvE392jdjsvRBKN72v765f?RT'

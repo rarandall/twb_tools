@@ -57,3 +57,14 @@ table, th, td
 tr:nth-child(even) {
   background-color: #dddddd;
 }
+
+#myProgress {
+  width: 100%;
+  background-color: grey;
+}
+
+#myBar {
+  width: 1%;
+  height: 30px;
+  background-color: green;
+}
