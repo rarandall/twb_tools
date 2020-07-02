@@ -212,6 +212,42 @@ def translate_twb(file,src,dest,hashid):
         new_text = trans_obj.text
         child.attrib['name'] = new_text
 
+    for child in root.findall('./dashboards/dashboard/zone'):
+        if child.get('name') is not None:
+            clean_text = child.get('name').replace('_', ' ')
+            trans_obj = translator.translate(clean_text, src=src, dest=dest)
+            new_text = trans_obj.text
+            child.attrib['name'] = new_text
+
+    for child in root.findall('./dashboards/dashboard/zones/zone'):
+        if child.get('name') is not None:
+            clean_text = child.get('name').replace('_', ' ')
+            trans_obj = translator.translate(clean_text, src=src, dest=dest)
+            new_text = trans_obj.text
+            child.attrib['name'] = new_text
+
+    for subroot in root.findall('./dashboards/dashboard/devicelayouts/devicelayout/zones'):
+        for child in subroot.iter('zone'):
+            if child.get('name') is not None:
+                clean_text = child.get('name').replace('_', ' ')
+                trans_obj = translator.translate(clean_text, src=src, dest=dest)
+                new_text = trans_obj.text
+                child.attrib['name'] = new_text
+
+    for child in root.iter('viewpoint'):
+        if child.get('name') is not None:
+            clean_text = child.get('name').replace('_', ' ')
+            trans_obj = translator.translate(clean_text, src=src, dest=dest)
+            new_text = trans_obj.text
+            child.attrib['name'] = new_text
+
+    for child in root.iter('story-point'):
+        if child.get('captured-sheet') is not None:
+            clean_text = child.get('captured-sheet').replace('_', ' ')
+            trans_obj = translator.translate(clean_text, src=src, dest=dest)
+            new_text = trans_obj.text
+            child.attrib['captured-sheet'] = new_text
+
     # translate dashboard and story names
     for child in root.findall('./dashboards/dashboard'):
         clean_text = child.get('name').replace('_', ' ')
@@ -242,6 +278,54 @@ def translate_twb(file,src,dest,hashid):
             new_text = trans_obj.text
             child.attrib['caption'] = new_text
 
+    for child in root.findall('./datasources/datasource/column'):
+        if child.get('alias') is not None:
+            clean_text = child.get('alias').replace('_', ' ')
+            trans_obj = translator.translate(clean_text, src=src, dest=dest)
+            new_text = trans_obj.text
+            child.attrib['alias'] = new_text
+
+    for child in root.findall('./datasources/datasource/column/aliases/alias'):
+        if child.get('value') is not None:
+            clean_text = child.get('value').replace('_', ' ')
+            trans_obj = translator.translate(clean_text, src=src, dest=dest)
+            new_text = trans_obj.text
+            child.attrib['value'] = new_text
+
+    for child in root.findall('./datasources/datasource/column/members/member'):
+        if child.get('alias') is not None:
+            clean_text = child.get('alias').replace('_', ' ')
+            trans_obj = translator.translate(clean_text, src=src, dest=dest)
+            new_text = trans_obj.text
+            child.attrib['alias'] = new_text
+
+    for child in root.findall('./datasources/datasource/datasource-dependencies/column'):
+        if child.get('alias') is not None:
+            clean_text = child.get('alias').replace('_', ' ')
+            trans_obj = translator.translate(clean_text, src=src, dest=dest)
+            new_text = trans_obj.text
+            child.attrib['alias'] = new_text
+
+        if child.get('caption') is not None:
+            clean_text = child.get('caption').replace('_', ' ')
+            trans_obj = translator.translate(clean_text, src=src, dest=dest)
+            new_text = trans_obj.text
+            child.attrib['caption'] = new_text
+
+    for child in root.findall('./datasources/datasource/datasource-dependencies/column/aliases/alias'):
+        if child.get('value') is not None:
+            clean_text = child.get('value').replace('_', ' ')
+            trans_obj = translator.translate(clean_text, src=src, dest=dest)
+            new_text = trans_obj.text
+            child.attrib['value'] = new_text
+
+    for child in root.findall('./datasources/datasource/datasource-dependencies/members/member'):
+        if child.get('alias') is not None:
+            clean_text = child.get('alias').replace('_', ' ')
+            trans_obj = translator.translate(clean_text, src=src, dest=dest)
+            new_text = trans_obj.text
+            child.attrib['alias'] = new_text
+
     # translate groups and bins
     for child in root.findall('./datasources/datasource/column'):
         for tag in child.findall('calculation[@class]'):
@@ -257,14 +341,39 @@ def translate_twb(file,src,dest,hashid):
                     new_text = trans_obj.text
                     child.attrib['caption'] = new_text
 
+    # # translate custom group dimensions
+    # for subroot in root.iter('calculation'):
+    #     if subroot.get('class') == 'categorical-bin':
+    #         for child in subroot.findall('bin'):
+    #             if child.get('default-name') == 'false':
+    #                 clean_text = child.get('value').replace('_', ' ')
+    #                 trans_obj = translator.translate(clean_text, src=src, dest=dest)
+    #                 new_text = trans_obj.text
+    #                 child.attrib['value'] = new_text
+
     # translate sets
-    # for child in root.findall('./datasources/datasource/group'):
-    #     if child.get('caption') is not None:
-    #         clean_text = child.get('caption').replace('_', ' ')
-    #         trans_obj = translator.translate(clean_text, src=src, dest=dest)
-    #         new_text = trans_obj.text
-    #         child.attrib['caption'] = new_text
-    #         child.attrib['name'] = '['+new_text+']'
+    for child in root.findall('./datasources/datasource/group'):
+        if child.get('caption') is not None:
+            clean_text = child.get('caption').replace('_', ' ')
+            trans_obj = translator.translate(clean_text, src=src, dest=dest)
+            new_text = trans_obj.text
+            child.attrib['caption'] = new_text
+            clean_text = child.get('name').replace('_', ' ')
+            clean_text = clean_text.replace('[', '')
+            clean_text = clean_text.replace(']', '')
+            trans_obj = translator.translate(clean_text, src=src, dest=dest)
+            new_text = trans_obj.text
+            child.attrib['name'] = '[' + new_text + ']'
+
+    for child in root.findall('./datasources/datasource/group/groupfilter/groupfilter'):
+        if child.get('function') == 'reference':
+            if child.get('field') is not None:
+                clean_text = child.get('field').replace('_', ' ')
+                clean_text = clean_text.replace('[', '')
+                clean_text = clean_text.replace(']', '')
+                trans_obj = translator.translate(clean_text, src=src, dest=dest)
+                new_text = trans_obj.text
+                child.attrib['field'] = '[' + new_text + ']'
 
     # translate folders
     for child in root.findall('./datasources/datasource/*folder'):
@@ -301,7 +410,7 @@ def translate_twb(file,src,dest,hashid):
         child.attrib['name'] = new_text
 
     output = os.path.join(app.config['OUTPUT_FOLDER'], hashid)
-    tree.write(output+'.twb')
+    tree.write(output+'.twb', encoding="UTF-8")
 
 if __name__ == "__main__":
     app.secret_key = 'AoAv38dAf3A0ZTvE392jdjsvRBKN72v765f?RT'
