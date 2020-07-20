@@ -13,7 +13,7 @@
       <br>
     <div><strong>Controls</strong>
     <ul>
-        Zoom: Mouse-wheel
+        Zoom: First click Mouse-wheel, then use Mouse-wheel to zoom
         <br>
         Pan: Click-drag
     </ul></div>
@@ -30,6 +30,7 @@
         <th>Remote Name</th>
         <th>Formula</th>
         <th>Comment</th>
+        <th>Fields</th>
       </tr>
     {% for row in filename %}
       <tr>
@@ -37,6 +38,7 @@
         <td>{{ row[1] }}</td>
         <td>{{ row[2] }}</td>
         <td>{{ row[3] }}</td>
+        <td>{{ row[4] }}</td>
       </tr>
     {% endfor %}
     </table>

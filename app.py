@@ -33,7 +33,7 @@ def index():
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename_h))
             # message = filename + " uploaded"
             df = get_calc(UPLOAD_FOLDER+filename_h)
-            p_df = pd.DataFrame(df, columns=['Name', 'Remote_Name', 'Formula', 'Comment'])
+            p_df = pd.DataFrame(df, columns=['Name', 'Remote_Name', 'Formula', 'Comment', 'Fields'])
             fields = get_fields(p_df)
             paths = get_paths(p_df)
             return render_template('output.html', filename=df, fileid=filename_h, fields=fields, paths=paths)
@@ -47,7 +47,7 @@ def csv():
     if request.method == 'POST':
         f = request.form.get("fileid")
         lol = get_calc(UPLOAD_FOLDER+f)
-        df = pd.DataFrame(lol, columns=['Name', 'Remote_Name', 'Formula', 'Comment'])
+        df = pd.DataFrame(lol, columns=['Name', 'Remote_Name', 'Formula', 'Comment', 'Fields'])
         csv_data = df.to_csv()
         return Response(
             csv_data,
@@ -97,57 +97,61 @@ def get_calc(file):
     # create a dictionary of name and tableau generated name
 
     calcDict = {}
+    notcalcSet = set()
 
-    for item in root.findall('.//column[@caption]'):
-        if item.find(".//calculation") is None:
-            continue
+    for child in root.iter('column'):
+        if child.find('calculation') is not None:
+            if child.get('caption') is not None:
+                calcDict[child.attrib['name']] = '[' + child.get('caption') + ']'
         else:
-            calcDict[item.attrib['name']] = '[' + item.attrib['caption'] + ']'
+            if child.get('name') is not None:
+                notcalcSet.add(child.get('name'))
 
     # list of calc's name, tableau generated name, and calculation/formula
     calcList = []
 
-    for item in root.findall('.//column[@caption]'):
-        if item.find(".//calculation") is None:
-            continue
-        else:
-            if item.find(".//calculation[@formula]") is None:
-                continue
-            else:
-                calc_caption = '[' + item.attrib['caption'] + ']'
-                calc_name = item.attrib['name']
-                calc_raw_formula = item.find(".//calculation").attrib['formula']
-                calc_comment = ''
-                calc_formula = ''
-                for line in calc_raw_formula.split('\r\n'):
-                    if line.startswith('//'):
-                        calc_comment = calc_comment + line + ' '
-                    else:
-                        calc_formula = calc_formula + line + ' '
-                for name, caption in calcDict.items():
-                    calc_formula = calc_formula.replace(name, caption)
+    for item in root.iter('column'):
+        if item.find("calculation") is not None:
+            if item.find("calculation") is not None:
+                if item.get('caption') is not None:
+                    calc_caption = '[' + item.get('caption') + ']'
+                    calc_name = item.attrib['name']
+                    calc_raw_formula = item.find(".//calculation").attrib['formula']
+                    calc_comment = ''
+                    calc_formula = ''
+                    for line in calc_raw_formula.splitlines():
+                        if line.startswith('//'):
+                            calc_comment = calc_comment + line + ' '
+                            calc_comment = calc_comment.replace('//','')
+                        else:
+                            calc_formula = calc_formula + line + ' '
+                    for name, caption in calcDict.items():
+                        calc_formula = calc_formula.replace(name, caption)
 
-                calc_row = (calc_caption, calc_name, calc_formula, calc_comment)
-                calcList.append(list(calc_row))
+                    # get fields from formula and add to list
+                    fieldList = []
+                    # remove parameter tags
+                    formula_no_ptag = calc_formula.replace('[Parameters].','')
+                    # search for fields
+                    formula_fields = re.findall('\[(.*?)\]', formula_no_ptag)
+                    # remove non-field values
+                    for field in formula_fields:
+                        field = "["+field+"]"
+                        if field in calcDict.values():
+                            fieldList.append(field)
+                        elif field in notcalcSet:
+                            fieldList.append(field)
+                    fieldList = set(fieldList)
+                    fieldList = ', '.join(fieldList)
+                    calc_row = (calc_caption, calc_name, calc_formula, calc_comment, fieldList)
+                    calcList.append(list(calc_row))
 
     # convert the list of calcs into a data frame
     data = calcList
     data.sort()
     # list(data for data, _ in itertools.groupby(data))
     data_dedup = [data[i] for i in range(len(data)) if i == 0 or data[i] != data[i - 1]]
-    # data = pd.DataFrame(data, columns=['Name', 'Remote Name', 'Formula', 'Comment'])
 
-    # remove duplicate rows from data frame
-    # data = data.drop_duplicates(subset=None, keep='first', inplace=False)
-
-    # export to csv
-    # get the name of the file
-
-    #base = os.path.basename(file)
-    #os.path.splitext(base)
-    #filename = os.path.splitext(base)[0]
-
-    #data.to_csv(filename + '.csv')
     return data_dedup
 
 def get_fields(df):
