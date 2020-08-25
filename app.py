@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 from googletrans import Translator
 import pandas as pd
 import re
+import time
 
 app = Flask(__name__)
 
@@ -18,6 +19,8 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_PATH'] = 50000
+
+now = time.time()
 
 def allowed_file(filename):
   return '.' in filename and \
@@ -33,9 +36,12 @@ def index():
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename_h))
             # message = filename + " uploaded"
             df = get_calc(UPLOAD_FOLDER+filename_h)
-            p_df = pd.DataFrame(df, columns=['Name', 'Remote_Name', 'Formula', 'Comment', 'Fields'])
+            p_df = pd.DataFrame(df, columns=['Datasource', 'Type', 'Name', 'Remote_Name', 'Formula', 'Comment', 'Fields'])
             fields = get_fields(p_df)
             paths = get_paths(p_df)
+            # for file in os.listdir(app.config['UPLOAD_FOLDER']):
+            #     if os.stat(os.path.join(app.config['UPLOAD_FOLDER'], file)).st_mtime < now - 86400:
+            #         os.remove(os.path.join(app.config['UPLOAD_FOLDER'], file))
             return render_template('output.html', filename=df, fileid=filename_h, fields=fields, paths=paths)
         else:
             error = "Not a valid twb file"
@@ -46,8 +52,8 @@ def index():
 def csv():
     if request.method == 'POST':
         f = request.form.get("fileid")
-        lol = get_calc(UPLOAD_FOLDER+f)
-        df = pd.DataFrame(lol, columns=['Name', 'Remote_Name', 'Formula', 'Comment', 'Fields'])
+        lol = get_calc(os.path.join(app.config['UPLOAD_FOLDER'],f[:-1]))
+        df = pd.DataFrame(lol, columns=['Datasource', 'Type', 'Name', 'Remote_Name', 'Formula', 'Comment', 'Fields'])
         csv_data = df.to_csv()
         return Response(
             csv_data,
@@ -74,6 +80,12 @@ def translate():
             output = os.path.join(current_app.root_path, app.config['OUTPUT_FOLDER'])
             filename_path = filename_h + '.twb'
             attachment_name = filename.replace('.twb','')+'_'+dest+'.twb'
+            # for file in os.listdir(app.config['UPLOAD_FOLDER']):
+            #     if os.stat(os.path.join(app.config['UPLOAD_FOLDER'], file)).st_mtime < now - 86400:
+            #         os.remove(os.path.join(app.config['UPLOAD_FOLDER'], file))
+            # for file in os.listdir(output):
+            #     if os.stat(os.path.join(output, file)).st_mtime < now - 86400:
+            #         os.remove(os.path.join(output, file))
             return send_from_directory(directory=output, filename=filename_path, as_attachment=True,
                                        attachment_filename=attachment_name)
         else:
@@ -109,14 +121,24 @@ def get_calc(file):
 
     # list of calc's name, tableau generated name, and calculation/formula
     calcList = []
+    paramList = []
 
-    for item in root.iter('column'):
-        if item.find("calculation") is not None:
+    for ds in root.iter("datasource"):
+        if ds.get("name") == "Parameters":
+            datasource = "Parameter"
+        else:
+            datasource = ds.get("caption")
+        for item in ds.iter('column'):
             if item.find("calculation") is not None:
                 if item.get('caption') is not None:
+                    calc_type = item.get('role')
                     calc_caption = '[' + item.get('caption') + ']'
-                    calc_name = item.attrib['name']
-                    calc_raw_formula = item.find(".//calculation").attrib['formula']
+                    if datasource == "Parameter":
+                        paramList.append(item.attrib['name'])
+                        calc_name = item.attrib['name']
+                    else:
+                        calc_name = item.attrib['name']
+                    calc_raw_formula = item.find("calculation").attrib["formula"]
                     calc_comment = ''
                     calc_formula = ''
                     for line in calc_raw_formula.splitlines():
@@ -143,12 +165,15 @@ def get_calc(file):
                             fieldList.append(field)
                     fieldList = set(fieldList)
                     fieldList = ', '.join(fieldList)
-                    calc_row = (calc_caption, calc_name, calc_formula, calc_comment, fieldList)
-                    calcList.append(list(calc_row))
+                    calc_row = (datasource, calc_type, calc_caption, calc_name, calc_formula, calc_comment, fieldList)
+                    if datasource != "Parameter" and calc_name in paramList:
+                        pass
+                    else:
+                        calcList.append(list(calc_row))
 
     # convert the list of calcs into a data frame
     data = calcList
-    data.sort()
+    #data = sorted(data)
     # list(data for data, _ in itertools.groupby(data))
     data_dedup = [data[i] for i in range(len(data)) if i == 0 or data[i] != data[i - 1]]
 
