@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 from google_trans_new import google_translator
 #from googletrans import Translator
 import pandas as pd
+from six.moves import urllib
 import re
 import time
 
